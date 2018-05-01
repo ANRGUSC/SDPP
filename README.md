@@ -1,4 +1,6 @@
-Streaming Data Payment Protocol(SDPP) - An application layer protocol that enables purchase of sensor data streams through cryptocurrency. It is implemented using IOTA. **More to come, it is still in development phase.**
+Streaming Data Payment Protocol(SDPP) - An application-layer client-server protocol that enables purchase of data streams (such as IoT sensor data) through cryptocurrency, with invoice and receipts stored in an immutable distributed ledger. It is implemented using IOTA. 
+
+For the current draft of the paper describing this protocol, please see the documents folder. 
 
 To try it out,
 
