@@ -1,3 +1,7 @@
+# Copyright (c) 2018, Autonomous Networks Research Group. All rights reserved.
+#     contributor: Rahul Radhakrishnan
+#     Read license file in main directory for more details  
+
 import socket
 import sys
 from thread import *
@@ -266,4 +270,8 @@ while True:
     start_new_thread(clientthread, (conn, addr))
 
 conn.close()
+<<<<<<< HEAD
 server.close()
+=======
+server.close()
+>>>>>>> ac9b3f77be1e62b856ab4e6a93af44b6f9cf6607

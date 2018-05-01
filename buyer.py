@@ -1,3 +1,7 @@
+# Copyright (c) 2018, Autonomous Networks Research Group. All rights reserved.
+#     contributor: Rahul Radhakrishnan
+#     Read license file in main directory for more details  
+
 import socket
 import json
 import sys
