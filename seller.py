@@ -47,7 +47,6 @@ payment_address = str(payment_address['addresses'][0].address)
 # Info to be received from buyer
 invoice_address = ""
 encrypt_pub_key = ""
-signature_pub_key = ""
 data_type = ""
 quantity = 0
 currency = "iota"
@@ -76,6 +75,9 @@ def signData(plaintext):
     signature = key.sign(hash, '')
     return signature
 
+def verifySignature(message, signature):
+    hash = MD5.new(message).digest()
+    return signature_pub_key.verify(hash, signature)
 
 # prepares the json data that needs to be sent to the seller
 def prepareJSONstring(message_type, data, signature=None, verification=None):
@@ -110,11 +112,6 @@ def prepareMenuData():
     signature = signData(menu)
 
     return prepareJSONstring("MENU", menu, signature)
-
-
-def verifySignature(message, signature):
-    hash = MD5.new(message).digest()
-    return signature_pub_key.verify(hash, signature)
 
 
 '''
@@ -244,7 +241,7 @@ def dataTransfer():
         # Verify Signature of the Buyer
         if signature_required == 1:
             recv_signature = message['signature']
-            print verifySignature(data, recv_signature)
+            verifySignature(data, recv_signature)
 
         # If it is a payment ack, check if the transaction is present
         recv_message_type = message['message_type']
@@ -279,7 +276,7 @@ def clientthread(conn, addr):
     message = json.loads(message)
 
     if signature_required == 1:
-        print verifySignature(message['data'], message['signature'])
+        verifySignature(message['data'], message['signature'])
 
     if remaining > 0:
         #TODO verify the transaction

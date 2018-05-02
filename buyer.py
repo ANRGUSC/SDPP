@@ -130,7 +130,7 @@ def receiveMenu():
     signature_required = int(data['signature-required'])
     seller_public_key = RSA.importKey(data['public-key'])
 
-    print verifySignature(str(message['data']), message['signature'])
+    verifySignature(message['data'], message['signature'])
 
     return data['menu']
 
@@ -209,7 +209,7 @@ def dataTransfer():
 
         # verify signature
         seller_signature = message['signature']
-        print verifySignature(sensor_data, seller_signature)
+        verifySignature(message['data'], seller_signature)
 
         f.write(sensor_data + '\n')
 
