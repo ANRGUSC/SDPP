@@ -14,7 +14,6 @@ import os
 import hashlib
 import iota
 import logging
-import time
 import json
 import pprint
 
@@ -34,7 +33,7 @@ server.bind((IP_address, Port))
 server.listen(500)
 
 # IOTA Related
-seed = "999RAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHUL999"
+seed = ""
 client = "http://node02.iotatoken.nl:14265"
 iota_api = iota.Iota(client, seed)
 
@@ -60,15 +59,6 @@ secret_key = ""
 #iota_api.adapter.set_logger(logger)
 
 
-def _pad(s):
-    return s + (bs - len(s) % bs) * chr(bs - len(s) % bs)
-
-def encrypt(raw):
-    raw = _pad(raw)
-    iv = Random.new().read(AES.block_size)
-    cipher = AES.new(secret_key, AES.MODE_CBC, iv)
-    return base64.b64encode(iv + cipher.encrypt(raw))
-
 def create_logger(severity):
     logging.basicConfig(
         level=severity,
@@ -77,20 +67,49 @@ def create_logger(severity):
     )
     return logging.getLogger(__name__)
 
-
-# signs the given string for integrity check
 def signData(plaintext):
+    """
+    Signs the Data
+    :param plaintext: String to be signed
+    :return: signature<Tuple>
+    """
     hash = MD5.new(plaintext).digest()
     signature = key.sign(hash, '')
     return signature
 
 def verifySignature(message, signature):
+    """
+    Verifies the Signature
+    :param message: String to be verified
+    :param signature: Signature provided by the Buyer
+    :return: True/False
+    """
     hash = MD5.new(message).digest()
     return signature_pub_key.verify(hash, signature)
 
-# prepares the json data that needs to be sent to the seller
-def prepareJSONstring(message_type, data, signature=None, verification=None):
+def _pad(s):
+    return s + (bs - len(s) % bs) * chr(bs - len(s) % bs)
 
+def encrypt(raw):
+    """
+    AES based encryption(using Session Key)
+    :param enc: String to be encrypted
+    :return: Encrypted Data<String>
+    """
+    raw = _pad(raw)
+    iv = Random.new().read(AES.block_size)
+    cipher = AES.new(secret_key, AES.MODE_CBC, iv)
+    return base64.b64encode(iv + cipher.encrypt(raw))
+
+def prepareJSONstring(message_type, data, signature=None, verification=None):
+    """
+   Prepares the JSON message format to be sent to the Buyer
+   :param message_type: MENU/SESSION_KEY/DATA/DATA_INVOICE
+   :param data: Corresponding data
+   :param signature: Signed Data
+   :param verification: Address or the transaction ID in Tangle/Blockchain
+   :return: JSON dictionary
+    """
     json_data = {}
 
     json_data['message_type'] = message_type
@@ -107,43 +126,6 @@ def prepareJSONstring(message_type, data, signature=None, verification=None):
 
     return json.dumps(json_data)
 
-
-def prepareMenuData():
-    with open('menu.json') as myfile:
-        menu = myfile.read()
-        menu = json.loads(menu)
-        menu['payment-address'] = payment_address
-        menu['payment-granularity'] = str(payment_granularity)
-        menu['signature-required'] = str(signature_required)
-        menu['public-key'] = seller_public_key
-        menu = json.dumps(menu)
-
-    signature = signData(menu)
-
-    return prepareJSONstring("MENU", menu, signature)
-
-
-'''
-def verifyTramsaction(verify_addr, message="", value=""):
-    transaction = iota_api.get_trytes(hashes=[verify_addr])
-    if not transaction:
-        print "Buyer didn't record the transaction in the tangle"
-
-    if message != "":
-        message_tangle = iota.Transaction.from_tryte_string(transaction['trytes'][0])\
-                    .signature_message_fragment.as_string()
-
-        if message_tangle.split('\n')[0] != str(message):
-            print "Buyer didn't record the actual data in the tangle"
-
-    if value != "":
-        value_ = iota.Transaction.from_tryte_string(transaction['trytes'][0]).value
-        print value, value_
-        if str(value_) != str(value):
-            print "User didn't send the actual money"
-'''
-
-
 def sendTransaction(transaction):
     try:
         bundle = iota_api.send_transfer(depth=2, transfers=[transaction])
@@ -156,6 +138,12 @@ def sendTransaction(transaction):
         return False
 
 def prepareTransaction(value=0, message=None):
+    """
+    Prepares the transaction to be made through the distributed ledger
+    :param message: Message for the payment
+    :param value: Amount of cryptocurrencies to be sent
+    :return: Transaction ID/ Address/ Transaction hash
+    """
     if message:
         message = iota.TryteString.from_string(message)
     tag = iota.Tag(b"SDPPSELLER")
@@ -169,43 +157,20 @@ def prepareTransaction(value=0, message=None):
     return sendTransaction(transaction)
 
 def generateSecretKey():
+    """
+    Generates the Session key to be used for Data Transfer
+    :return: Session Key<String>
+    """
     global secret_key
     secret_key = hashlib.sha256(os.urandom(16)).digest()
     return str(encrypt_pub_key.encrypt(secret_key, 32))
 
 
-def receiveOrder():
-    global invoice_address, encrypt_pub_key, signature_pub_key, data_type, quantity, currency
-    message = conn.recv(2048)
-    message = json.loads(message)
-
-    data = json.loads(message['data'])
-
-    # get all the information
-    data_type = str(data['data_type'])
-    quantity = int(data['quantity'])
-    currency = data['currency']
-    encrypt_pub_key = RSA.importKey(data['encryption-key'])
-    signature_pub_key = RSA.importKey(data['signature-key'])
-    invoice_address = iota.Address(str(data['address']))
-
-    buyer_order = str(data_type) + ' ' + str(quantity)
-
-    if verifySignature(buyer_order, message['signature']) is not True:
-        print "Invalid Signature, closing the connection.."
-        conn.close()
-        exit()
-
-    # TODO verify if the buyer has registered in the blockchain/tangle
-    verify_addr = message['verification']
-    # verifyTramsaction(verify_addr, message=buyer_order)
-
-    session_key = generateSecretKey()
-    json_string = prepareJSONstring("SESSION_KEY", session_key)
-    conn.send(json_string)
-
-
 def dataTransfer():
+    """
+    Actual Data Transfer happens here
+    :return: Remaining data for which money is yet to be paid
+    """
     with open('menu.json') as myfile:
         menu = myfile.read()
         menu = json.loads(menu)
@@ -274,8 +239,59 @@ def dataTransfer():
     print "--------Data Transfer Ends---------"
     return remaining
 
+def receiveOrder():
+    """
+    Process the order from the buyer and stores other informations provided by the buyer
+    :return: None
+    """
+    global invoice_address, encrypt_pub_key, signature_pub_key, data_type, quantity, currency
+    message = conn.recv(2048)
+    message = json.loads(message)
+
+    data = json.loads(message['data'])
+
+    # get all the information
+    data_type = str(data['data_type'])
+    quantity = int(data['quantity'])
+    currency = data['currency']
+    encrypt_pub_key = RSA.importKey(data['encryption-key'])
+    signature_pub_key = RSA.importKey(data['signature-key'])
+    invoice_address = iota.Address(str(data['address']))
+
+    buyer_order = str(data_type) + ' ' + str(quantity)
+
+    if verifySignature(buyer_order, message['signature']) is not True:
+        print "Invalid Signature, closing the connection.."
+        conn.close()
+        exit()
+
+    # TODO verify if the buyer has registered in the blockchain/tangle
+    verify_addr = message['verification']
+    # verifyTramsaction(verify_addr, message=buyer_order)
+
+    session_key = generateSecretKey()
+    json_string = prepareJSONstring("SESSION_KEY", session_key)
+    conn.send(json_string)
+
+def prepareMenuData():
+    with open('menu.json') as myfile:
+        menu = myfile.read()
+        menu = json.loads(menu)
+        menu['payment-address'] = payment_address
+        menu['payment-granularity'] = str(payment_granularity)
+        menu['signature-required'] = str(signature_required)
+        menu['public-key'] = seller_public_key
+        menu = json.dumps(menu)
+
+    signature = signData(menu)
+
+    return prepareJSONstring("MENU", menu, signature)
 
 def sendMenu():
+    """
+    Send the Menu with other details to the Buyer
+    :return: None
+    """
     json_string = prepareMenuData()
     conn.send(json_string)
 
@@ -286,7 +302,6 @@ if len(sys.argv) != 3:
     exit()
 
 def clientthread(conn, addr):
-    # sends a message to the client whose user object is conn
     sendMenu()
     receiveOrder()
     remaining  = dataTransfer()
@@ -310,10 +325,10 @@ while True:
     # receive the address here
     conn, addr = server.accept()
 
-    # prints the address of the user that just connected
+    # prints the address of the buyer that just connected
     print addr[0] + " connected"
 
-    # creates an individual thread for every user
+    # creates an individual thread for every buyer
     start_new_thread(clientthread, (conn, addr))
 
 conn.close()
