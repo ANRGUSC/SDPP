@@ -19,6 +19,7 @@ IP_address = str(sys.argv[1])
 Port = int(sys.argv[2])
 server.connect((IP_address, Port))
 
+
 # Connect to the tangle
 seed = "RAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHUL9RAHUL"
 client = "http://node02.iotatoken.nl:14265"
@@ -125,6 +126,8 @@ def receiveMenu():
     message = json.loads(message)
     data = json.loads(str(message['data']))
 
+    pprint.pprint(data)
+
     payment_granularity = int(data['payment-granularity'])
     payment_address = iota.Address(str(data['payment-address']))
     signature_required = int(data['signature-required'])
@@ -153,6 +156,7 @@ def prepareOrderData(data_type, quantity, currency):
 def placeOrder(available_data):
     global secret_key, quantity, cost, data_type
 
+    print "\nPlease enter the type of data, quantity and currency you wish to pay"
     print "Data type: ",
     data_type = sys.stdin.readline()
     data_type = data_type.strip()
@@ -178,6 +182,7 @@ def placeOrder(available_data):
     signature = signData(buyer_order)
 
     # Record the transaction in tangle/blockchain
+    print "Order recorded in the distributed ledger: ",
     transaction_hash = prepareTransaction(message=buyer_order + ' ' + str(signature))
 
     data = prepareOrderData(data_type, quantity, currency)
@@ -234,6 +239,7 @@ def dataTransfer():
 
             value = 0
             # value = access_data['invoice']
+            print "Payment made: ",
             transaction_hash = prepareTransaction(value=value)
             send_message_type = "PAYMENT_ACK"
 
@@ -269,6 +275,7 @@ while True:
     if remaining > 0:
         # value = remaining * cost
         value = 0
+        print "Payment made for the remaining data: ",
         transaction_hash = prepareTransaction(value=value)
 
     json_string = prepareJSONstring("EXIT", data, signature, transaction_hash)

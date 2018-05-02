@@ -220,6 +220,7 @@ def dataTransfer():
             remaining = remaining - payment_granularity
             data_invoice = "Sent: " + str(payment_granularity)
             data_invoice += "\nCost: " + str(payment_granularity*cost)
+            print "Invoice recorded: ",
             transaction_hash = prepareTransaction(message=data_invoice)
             data['invoice'] = str(payment_granularity*cost)
             message_type = "DATA_INVOICE"
@@ -291,7 +292,7 @@ def clientthread(conn, addr):
         #TODO verify the transaction
         verify_addr = message['verification']
 
-    print "Done!"
+    print "\nWaiting for other buyers!"
 
 while True:
 
