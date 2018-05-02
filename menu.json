@@ -1,6 +1,12 @@
 {
-"gas" : "2 iotas each",
-"temperature": "3 iotas each",
-"humidity": "2 iotas each",
-"pressure": "2 iotas each"
+  "menu": {
+    "gas": "2",
+    "temperature": "3",
+    "humidity": "2",
+    "pressure": "2"
+  },
+  "default-currency": "iota",
+  "list-of-currencies": ["iota", "bitcoin", "ethereum"],
+  "payment-granularity": "5",
+  "signature-required": "1"
 }

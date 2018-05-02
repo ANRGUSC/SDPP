@@ -21,28 +21,20 @@ def validate_user_input(input_str, available_data):
     return True
 
 # prepares the json data that needs to be sent to the seller
-def prepareJSONstring(data=None, ack=None, key=None, tangle_info=None, signature=None):
+def prepareJSONstring(message_type, data, signature=None, verification=None):
     json_data = {}
-    if data:
-        json_data['data'] = data
-    else:
-        json_data['data'] = ""
-    if ack:
-        json_data['ack'] = ack
-    else:
-        json_data['ack'] = ""
-    if key:
-        json_data['key'] = key
-    else:
-        json_data['key'] = ""
-    if tangle_info:
-        json_data['tangle_info'] = tangle_info
-    else:
-        json_data['tangle_info'] = ""
+
+    json_data['message_type'] = message_type
+    json_data['data'] = data
+
     if signature:
         json_data['signature'] = signature
     else:
         json_data['signature'] = ""
+    if verification:
+        json_data['verification'] = verification
+    else:
+        json_data['verification'] = ""
 
     return json.dumps(json_data)
 
@@ -71,61 +63,81 @@ def sendTransaction(transaction):
         #logger.error(error)
         return False
 
-def prepareTransaction(addr="", value=0, message=""):
-    if message != "":
+def prepareTransaction(message=None, value=0):
+    if message:
         message = iota.TryteString.from_string(message)
     tag = iota.Tag(b"SDPPBUYER")
 
-    if addr == "":
-        addr = iota_api.get_new_addresses(count=1)
-        addr  = addr['addresses'][0].address
-
-
-    target_addr = iota.Address(addr)
-
     transaction = iota.ProposedTransaction(
-        address=target_addr,
+        address=payment_address,
         value=value,
         message=message,
         tag=tag
     )
 
-    transaction_hash = sendTransaction(transaction)
-    if not transaction_hash:
-        return False
-    print transaction_hash
+    return sendTransaction(transaction)
 
-    return transaction_hash
 
-def placeOrder():
+def receiveMenu():
     message = server.recv(2048)
     message = json.loads(message)
-    print message['data']
-    available_data = json.loads(message['data'].split("\n\n")[1])
 
-    buyer_order = sys.stdin.readline()
-    buyer_order = buyer_order.strip()
+    data = json.loads(str(message['data']))
 
-    while not validate_user_input(buyer_order, available_data):
+    #TODO - verify seller signature
+
+    return iota.Address(str(data['payment-address'])), str(data['payment-granularity']), data['menu']
+
+def prepareOrderData(data_type, quantity, currency):
+    data = {}
+
+    data['data_type'] = data_type
+    data['quantity'] = quantity
+    data['currency'] = currency
+
+    data['signature-key'] = signature_key.publickey().exportKey('OpenSSH')
+    data['encryption-key'] = encrypt_key.publickey().exportKey('OpenSSH')
+
+    data['address'] = invoice_address
+
+    return data
+
+def placeOrder(available_data):
+
+    print "Data type: "
+    data_type = sys.stdin.readline()
+
+    # TODO validate user input
+    '''
+    while not validate_user_input(data_type, available_data):
         print "Please follow this format : <data_request> <quantity>\n"
-        buyer_order = sys.stdin.readline()
+        data_type = sys.stdin.readline()
+    '''
+
+    print "Quantity: "
+    quantity = sys.stdin.readline()
+
+    print "Currency: "
+    currency = sys.stdin.readline()
+
+    buyer_order = str(data_type)+ ' ' + str(quantity)
 
     # Sign the order
-    signature = signData(key, buyer_order)
+    signature = str(signData(signature_key, buyer_order))
 
     # Generate a tangle address and push signed order to tangle
-    transaction_hash = prepareTransaction(message=buyer_order + '\n' + ''.join(str(signature)))
+    transaction_hash = prepareTransaction(message=buyer_order + ' ' + signature)
 
-    if not transaction_hash:
-        # send bad signal to server
-        exit(0)
+    print transaction_hash
 
-    json_string = prepareJSONstring(data=buyer_order, key=key.publickey().exportKey('OpenSSH'),
-                                    tangle_info=transaction_hash, signature=signature)
+    data = prepareOrderData(data_type, quantity, currency)
+
+    json_string = prepareJSONstring("ORDER", json.dumps(data), signature, transaction_hash)
 
     server.send(json_string)
-    buyer_order = buyer_order.split(" ")
-    return int(buyer_order[1]), buyer_order[0], int(available_data[buyer_order[0]].split(" ")[0])
+
+    return quantity
+
 
 def dataTransferInfo():
     message = server.recv(2048)
@@ -192,18 +204,30 @@ server.connect((IP_address, Port))
 # connect to IOTA server
 
 # running on a light wallte node
-seed = ""
+seed = "RAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHUL9RAHUL"
 client = "http://node02.iotatoken.nl:14265"
 iota_api = iota.Iota(client, seed)
 #logger = create_logger(severity=logging.DEBUG)
 #iota_api.adapter.set_logger(logger)
 
 # generate keys
-key = RSA.generate(2048)
+encrypt_key = RSA.generate(2048)
+signature_key = RSA.generate(2048, e=65537)
+
+payment_address = ""
+
+invoice_address = iota_api.get_new_addresses(count=1)
+invoice_address = str(invoice_address['addresses'][0].address)
+
 
 while True:
 
-    quantity, data_request, iotas = placeOrder()
+    payment_address, payment_granularity, available_data = receiveMenu()
+
+    quantity = placeOrder(available_data)
+
+    break
+
     print "Step 1 Success"
     k, money_addr = dataTransferInfo()
     print "Step 2 Success"

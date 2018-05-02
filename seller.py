@@ -21,31 +21,42 @@ def create_logger(severity):
     )
     return logging.getLogger(__name__)
 
+# signs the given string for integrity check
+def signData(plaintext):
+    hash = MD5.new(plaintext).digest()
+    signature = key.sign(hash, '')
+    return signature
+
 # prepares the json data that needs to be sent to the seller
-def prepareJSONstring(data=None, ack=None, key=None, tangle_info=None, signature=None):
+def prepareJSONstring(message_type, data, signature=None, verification=None):
+
     json_data = {}
-    if data:
-        json_data['data'] = data
-    else:
-        json_data['data'] = ""
-    if ack:
-        json_data['ack'] = ack
-    else:
-        json_data['ack'] = ""
-    if key:
-        json_data['key'] = key
-    else:
-        json_data['key'] = ""
-    if tangle_info:
-        json_data['tangle_info'] = tangle_info
-    else:
-        json_data['tangle_info'] = ""
+
+    json_data['message_type'] = message_type
+    json_data['data'] = data
+
     if signature:
         json_data['signature'] = signature
     else:
         json_data['signature'] = ""
+    if verification:
+        json_data['verification'] = verification
+    else:
+        json_data['verification'] = ""
 
     return json.dumps(json_data)
+
+def prepareMenuData():
+    with open('menu.json') as myfile:
+        menu = myfile.read()
+        menu = json.loads(menu)
+        menu['payment-address'] = payment_address
+        menu = json.dumps(menu)
+
+    signature = str(signData(menu))
+
+    return prepareJSONstring("MENU", menu, signature)
+
 
 def verifySignature(order, pub_key, signature):
     hash = MD5.new(order).digest()
@@ -201,6 +212,12 @@ def dataTransfer(quantity, buyer_request, buyer_pub_key):
             last_counter = counter
         counter = counter + 1
 
+def sendMenu():
+
+    # send the Menu here
+    json_string = prepareMenuData()
+    conn.send(json_string)
+
 
 # checks whether sufficient arguments have been provided
 if len(sys.argv) != 3:
@@ -225,10 +242,19 @@ server.bind((IP_address, Port))
 # #### Limit can be modified. What's the maximum? ####
 server.listen(500)
 
+# generate keys
+key = RSA.generate(2048)
 
-seed = ""
+
+seed = "999RAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHUL999"
 client = "http://node02.iotatoken.nl:14265"
 iota_api = iota.Iota(client, seed)
+
+payment_address = iota_api.get_new_addresses(count=1)
+payment_address = str(payment_address['addresses'][0].address)
+
+invoice_address = ""
+
 #logger = create_logger(severity=logging.DEBUG)
 #logger = create_logger(logging.NOTSET)
 
@@ -238,15 +264,14 @@ iota_api = iota.Iota(client, seed)
 def clientthread(conn, addr):
     # sends a message to the client whose user object is conn
 
+    sendMenu()
+    message = conn.recv(2048)
+    message = json.loads(message)
+    pprint.pprint(message)
 
-    # send the Menu here
-    with open('menu.json') as myfile:
-        menu = myfile.read()
+    receiveOrder()
 
-    menu = "\nThanks for reaching out to us!!\n\n" + str(menu) + '\n' + \
-                "Please type your option \"<data_request> <quantity>\"" + '\n'
-    json_string = prepareJSONstring(data=menu)
-    conn.send(json_string)
+    return
 
     while True:
         quantity, buyer_request, buyer_pub_key = receiveOrder()
@@ -270,8 +295,5 @@ while True:
     start_new_thread(clientthread, (conn, addr))
 
 conn.close()
-<<<<<<< HEAD
+
 server.close()
-=======
-server.close()
->>>>>>> ac9b3f77be1e62b856ab4e6a93af44b6f9cf6607
