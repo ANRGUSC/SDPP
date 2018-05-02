@@ -194,9 +194,8 @@ def placeOrder(available_data):
     # Receive Session Key
     message = server.recv(2048)
     message = json.loads(message)
-    secret_key = message['data']
-
-
+    secret_key = encrypt_key.decrypt(ast.literal_eval(message['data']))
+    
 def dataTransfer():
     counter = 1
     filename = data_type + ".txt"
