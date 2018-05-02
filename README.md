@@ -23,7 +23,7 @@ It is still under development, we have just released the Version 1.0 of the prot
 - Encryption using Shared Secret Key
 - Seller sends its public-key to the buyer along with the "Menu"(but in practical scenarios, it is made available openly)
 
-## Future plans
+## Future Plans
 - Trying the protocol on Blockchain based cryptocurrencies
 - Integration with Hyperledger Fabric
 - A more general, clean architecture(based on [Blockstack](https://blockstack.org/)) 

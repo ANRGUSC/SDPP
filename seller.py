@@ -182,7 +182,10 @@ def receiveOrder():
 
     buyer_order = str(data_type) + ' ' + str(quantity)
 
-    verifySignature(buyer_order, message['signature'])
+    if verifySignature(buyer_order, message['signature']) is not True:
+        print "Invalid Signature, closing the connection.."
+        conn.close()
+        exit()
 
     # TODO verify if the buyer has registered in the blockchain/tangle
     verify_addr = message['verification']
@@ -241,7 +244,10 @@ def dataTransfer():
         # Verify Signature of the Buyer
         if signature_required == 1:
             recv_signature = message['signature']
-            verifySignature(data, recv_signature)
+            if verifySignature(data, recv_signature) is not True:
+                print "Invalid Signature, closing the connection.."
+                conn.close()
+                exit()
 
         # If it is a payment ack, check if the transaction is present
         recv_message_type = message['message_type']
@@ -276,7 +282,10 @@ def clientthread(conn, addr):
     message = json.loads(message)
 
     if signature_required == 1:
-        verifySignature(message['data'], message['signature'])
+        if verifySignature(message['data'], message['signature']) is not True:
+            print "Invalid Signature, closing the connection.."
+            conn.close()
+            exit()
 
     if remaining > 0:
         #TODO verify the transaction

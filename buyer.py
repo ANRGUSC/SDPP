@@ -130,7 +130,9 @@ def receiveMenu():
     signature_required = int(data['signature-required'])
     seller_public_key = RSA.importKey(data['public-key'])
 
-    verifySignature(message['data'], message['signature'])
+    if verifySignature(message['data'], message['signature']) is not True:
+        print "Invalid Signature, exiting.."
+        exit()
 
     return data['menu']
 
@@ -209,7 +211,9 @@ def dataTransfer():
 
         # verify signature
         seller_signature = message['signature']
-        verifySignature(message['data'], seller_signature)
+        if verifySignature(message['data'], seller_signature) is not True:
+            print "Invalid Signature, exiting.."
+            exit()
 
         f.write(sensor_data + '\n')
 
