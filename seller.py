@@ -43,6 +43,7 @@ signature_required = 1
 payment_granularity = 5
 payment_address = iota_api.get_new_addresses(count=1)
 payment_address = str(payment_address['addresses'][0].address)
+bs = 32
 
 # Info to be received from buyer
 invoice_address = ""
@@ -59,6 +60,14 @@ secret_key = ""
 #iota_api.adapter.set_logger(logger)
 
 
+def _pad(s):
+    return s + (bs - len(s) % bs) * chr(bs - len(s) % bs)
+
+def encrypt(raw):
+    raw = _pad(raw)
+    iv = Random.new().read(AES.block_size)
+    cipher = AES.new(secret_key, AES.MODE_CBC, iv)
+    return base64.b64encode(iv + cipher.encrypt(raw))
 
 def create_logger(severity):
     logging.basicConfig(
@@ -208,10 +217,10 @@ def dataTransfer():
     remaining = quantity
     counter = 1
 
+    print "--------Data Transfer Starts---------"
     while counter <= quantity:
-        encrypted_data = lines[counter-1]
         data = {}
-        data['data'] = encrypted_data
+        data['data'] = lines[counter-1]
         transaction_hash = None
         message_type = "DATA"
 
@@ -226,6 +235,8 @@ def dataTransfer():
             message_type = "DATA_INVOICE"
 
         data = json.dumps(data)
+        # Encrypt using the Session Key
+        data = encrypt(data)
         signature = signData(data)
         json_string = prepareJSONstring(message_type, data, signature, transaction_hash)
 
@@ -260,7 +271,7 @@ def dataTransfer():
         # print pprint.pprint(message)
 
         counter = counter + 1
-
+    print "--------Data Transfer Ends---------"
     return remaining
 
 

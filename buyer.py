@@ -11,7 +11,11 @@ import Crypto.PublicKey.RSA as RSA
 import ast
 import pprint
 import iota
-
+import base64
+import os
+import hashlib
+from Crypto import Random
+from Crypto.Cipher import AES
 
 # Establish Connection
 server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
@@ -32,6 +36,7 @@ signature_key = RSA.generate(2048, e=65537)
 # Set values
 invoice_address = iota_api.get_new_addresses(count=1)
 invoice_address = str(invoice_address['addresses'][0].address)
+bs = 32
 
 # Info to be received from Seller
 payment_address = ""
@@ -47,6 +52,15 @@ seller_public_key = ""
 #logger = create_logger(severity=logging.DEBUG)
 #iota_api.adapter.set_logger(logger)
 
+
+def _unpad(s):
+    return s[:-ord(s[len(s)-1:])]
+
+def decrypt(enc):
+    enc = base64.b64decode(enc)
+    iv = enc[:AES.block_size]
+    cipher = AES.new(secret_key, AES.MODE_CBC, iv)
+    return _unpad(cipher.decrypt(enc[AES.block_size:])).decode('utf-8')
 
 # validates the order placed by the buyer
 def validate_user_input(input_str, available_data):
@@ -195,13 +209,14 @@ def placeOrder(available_data):
     message = server.recv(2048)
     message = json.loads(message)
     secret_key = encrypt_key.decrypt(ast.literal_eval(message['data']))
-    
+
 def dataTransfer():
     counter = 1
     filename = data_type + ".txt"
     f = open(filename, "a")
     remaining = quantity
 
+    print "-------Receiving Data Starts-------"
     while counter <= quantity:
         message = server.recv(2048)
         message = json.loads(message)
@@ -209,7 +224,7 @@ def dataTransfer():
         # print "Data " + str(counter) + " received"
         # print pprint.pprint(message)
 
-        access_data = json.loads(message['data'])
+        access_data = json.loads(decrypt(message['data']))
         sensor_data = access_data['data']
         message_type = message['message_type']
 
@@ -249,7 +264,7 @@ def dataTransfer():
         # print pprint.pprint(json.loads(json_string))
 
         counter = counter + 1
-
+    print "-------Receiving Data Ends--------"
     return remaining
 
 # Usage
