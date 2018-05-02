@@ -6,8 +6,8 @@ An application-layer client-server protocol that enables purchase of data stream
 [Current draft of the paper describing this protocol](https://github.com/ANRGUSC/SDPP/blob/master/documents/streaming-data-payment-protocol.pdf)
 
 ## Requirements
-- pip install pyota - [More here](https://pyota.readthedocs.io/en/latest/)
-- pip install pycrypto
+- [pyota](https://pyota.readthedocs.io/en/latest/) - Python library for the IOTA Core 
+- [pycrypto](https://www.dlitz.net/software/pycrypto/) - Python Cryptography Toolkit
 
 ## Instructions
 - git clone https://github.com/ANRGUSC/SDPP.git
@@ -28,3 +28,5 @@ An application-layer client-server protocol that enables purchase of data stream
 - Incorporating TLS
 - Implementation with mobile device
 
+## License
+Copyright (c) 2018, Autonomous Networks Research Group, USC. See [this](https://github.com/ANRGUSC/SDPP/blob/master/LICENSE.txt) file for more details.
