@@ -1,5 +1,5 @@
 # Copyright (c) 2018, Autonomous Networks Research Group. All rights reserved.
-#     contributor: Rahul Radhakrishnan
+#     Contributor: Rahul Radhakrishnan
 #     Read license file in main directory for more details  
 
 import socket
@@ -11,6 +11,40 @@ import Crypto.PublicKey.RSA as RSA
 import ast
 import pprint
 import iota
+
+
+# Establish Connection
+server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+IP_address = str(sys.argv[1])
+Port = int(sys.argv[2])
+server.connect((IP_address, Port))
+
+# Connect to the tangle
+seed = "RAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHUL9RAHUL"
+client = "http://node02.iotatoken.nl:14265"
+iota_api = iota.Iota(client, seed)
+
+# Generate keys
+encrypt_key = RSA.generate(2048)
+signature_key = RSA.generate(2048, e=65537)
+
+# Set values
+invoice_address = iota_api.get_new_addresses(count=1)
+invoice_address = str(invoice_address['addresses'][0].address)
+
+# Info to be received from Seller
+payment_address = ""
+payment_granularity = 0
+secret_key = ""
+quantity = 0
+cost = 0
+data_type = ""
+signature_required = 0
+seller_public_key = ""
+
+# Tangle logs
+#logger = create_logger(severity=logging.DEBUG)
+#iota_api.adapter.set_logger(logger)
 
 
 # validates the order placed by the buyer
@@ -39,10 +73,16 @@ def prepareJSONstring(message_type, data, signature=None, verification=None):
     return json.dumps(json_data)
 
 # signs the given string for integrity check
-def signData(key, plaintext):
+def signData(plaintext):
     hash = MD5.new(plaintext).digest()
-    signature = key.sign(hash, '')
+    signature = signature_key.sign(hash, '')
     return signature
+
+
+def verifySignature(message, signature):
+    hash = MD5.new(message).digest()
+    return seller_public_key.verify(hash, signature)
+
 
 def create_logger(severity):
     logging.basicConfig(
@@ -79,14 +119,20 @@ def prepareTransaction(message=None, value=0):
 
 
 def receiveMenu():
+    global payment_address, payment_granularity, signature_required, seller_public_key
+
     message = server.recv(2048)
     message = json.loads(message)
-
     data = json.loads(str(message['data']))
 
-    #TODO - verify seller signature
+    payment_granularity = int(data['payment-granularity'])
+    payment_address = iota.Address(str(data['payment-address']))
+    signature_required = int(data['signature-required'])
+    seller_public_key = RSA.importKey(data['public-key'])
 
-    return iota.Address(str(data['payment-address'])), str(data['payment-granularity']), data['menu']
+    print verifySignature(str(message['data']), message['signature'])
+
+    return data['menu']
 
 def prepareOrderData(data_type, quantity, currency):
     data = {}
@@ -103,9 +149,11 @@ def prepareOrderData(data_type, quantity, currency):
     return data
 
 def placeOrder(available_data):
+    global secret_key, quantity, cost, data_type
 
-    print "Data type: "
+    print "Data type: ",
     data_type = sys.stdin.readline()
+    data_type = data_type.strip()
 
     # TODO validate user input
     '''
@@ -113,22 +161,22 @@ def placeOrder(available_data):
         print "Please follow this format : <data_request> <quantity>\n"
         data_type = sys.stdin.readline()
     '''
+    cost = int(available_data[data_type])
 
-    print "Quantity: "
+    print "Quantity: ",
     quantity = sys.stdin.readline()
+    quantity = int(quantity)
 
-    print "Currency: "
+    print "Currency: ",
     currency = sys.stdin.readline()
 
     buyer_order = str(data_type)+ ' ' + str(quantity)
 
     # Sign the order
-    signature = str(signData(signature_key, buyer_order))
+    signature = signData(buyer_order)
 
-    # Generate a tangle address and push signed order to tangle
-    transaction_hash = prepareTransaction(message=buyer_order + ' ' + signature)
-
-    print transaction_hash
+    # Record the transaction in tangle/blockchain
+    transaction_hash = prepareTransaction(message=buyer_order + ' ' + str(signature))
 
     data = prepareOrderData(data_type, quantity, currency)
 
@@ -136,102 +184,91 @@ def placeOrder(available_data):
 
     server.send(json_string)
 
-    return quantity
-
-
-def dataTransferInfo():
+    # Receive Session Key
     message = server.recv(2048)
     message = json.loads(message)
-    #pprint.pprint(message)
+    secret_key = message['data']
 
-    k = key.decrypt(ast.literal_eval(message['data']))
-    money_addr = message['tangle_info']
 
-    return int(k), money_addr
-
-def sendIotas(money_addr, val, iotas):
-    return prepareTransaction(money_addr, value=val*iotas, message = "")
-
-def dataTransfer(quantity, k, money_addr, data_request, iotas):
+def dataTransfer():
     counter = 1
-    filename = data_request + ".txt"
+    filename = data_type + ".txt"
     f = open(filename, "a")
-    last_counter=0
-    new_money_addr = ""
+    remaining = quantity
 
     while counter <= quantity:
         message = server.recv(2048)
         message = json.loads(message)
-        #pprint.pprint(message)
 
-        if counter%k == 0:
-            new_money_addr = message['tangle_info']
+        # print "Data " + str(counter) + " received"
+        # print pprint.pprint(message)
 
-        sensor_data = key.decrypt(ast.literal_eval(message['data']))
-        f.write(sensor_data+'\n')
+        access_data = json.loads(message['data'])
+        sensor_data = access_data['data']
+        message_type = message['message_type']
 
-        if counter == quantity:
-             print counter-last_counter
-             addr = sendIotas(money_addr, counter-last_counter, iotas)
-             json_string = prepareJSONstring(ack=1, tangle_info=addr, signature=signData(key, "1"))
-             server.send(json_string)
-             break
+        # verify signature
+        seller_signature = message['signature']
+        print verifySignature(sensor_data, seller_signature)
 
-        if counter % k == 0:
-            print k
-            addr = sendIotas(money_addr, k, iotas)
-            json_string = prepareJSONstring(ack=1, tangle_info=addr, signature=signData(key, "1"))
-            last_counter = counter
-        else:
-            json_string = prepareJSONstring(ack=1, signature=signData(key, "1"))
+        f.write(sensor_data + '\n')
 
+        # Setting the values to send
+        send_message_type = "DATA_ACK"
+        transaction_hash = None
+        send_data = "1"
+        send_signature = None
+
+        if signature_required == 1:
+            send_signature = signData(send_data)
+
+        # Send cryptocurrencies
+        if message_type == "DATA_INVOICE":
+            remaining = remaining - payment_granularity
+            #TODO verify if the seller's invoice is present in the tangle/blockchain
+            verify_addr = message['verification']
+
+            value = 0
+            # value = access_data['invoice']
+            transaction_hash = prepareTransaction(value=value)
+            send_message_type = "PAYMENT_ACK"
+
+        json_string = prepareJSONstring(send_message_type, send_data, send_signature, transaction_hash)
         server.send(json_string)
-        if new_money_addr != "":
-            money_addr = new_money_addr
-            new_money_addr = ""
+
+        # print "Ack " + str(counter) + " sent"
+        # print pprint.pprint(json.loads(json_string))
+
         counter = counter + 1
+
+    return remaining
 
 # Usage
 if len(sys.argv) != 3:
     print "Correct usage: script, IP address, port number"
     exit()
 
-server = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-IP_address = str(sys.argv[1])
-Port = int(sys.argv[2])
-server.connect((IP_address, Port))
-
-# connect to IOTA server
-
-# running on a light wallte node
-seed = "RAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHULRAHUL9RAHUL"
-client = "http://node02.iotatoken.nl:14265"
-iota_api = iota.Iota(client, seed)
-#logger = create_logger(severity=logging.DEBUG)
-#iota_api.adapter.set_logger(logger)
-
-# generate keys
-encrypt_key = RSA.generate(2048)
-signature_key = RSA.generate(2048, e=65537)
-
-payment_address = ""
-
-invoice_address = iota_api.get_new_addresses(count=1)
-invoice_address = str(invoice_address['addresses'][0].address)
-
-
 while True:
 
-    payment_address, payment_granularity, available_data = receiveMenu()
+    available_data = receiveMenu()
 
-    quantity = placeOrder(available_data)
+    placeOrder(available_data)
 
-    break
+    remaining = dataTransfer()
 
-    print "Step 1 Success"
-    k, money_addr = dataTransferInfo()
-    print "Step 2 Success"
-    dataTransfer(quantity, k, money_addr, data_request, iotas)
+    data = "close"
+    signature = None
+    transaction_hash = None
+    if signature_required == 1:
+        signature = signData(data)
+
+    if remaining > 0:
+        # value = remaining * cost
+        value = 0
+        transaction_hash = prepareTransaction(value=value)
+
+    json_string = prepareJSONstring("EXIT", data, signature, transaction_hash)
+    server.send(json_string)
     print "Done!"
     break
 

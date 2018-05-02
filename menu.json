@@ -6,7 +6,5 @@
     "pressure": "2"
   },
   "default-currency": "iota",
-  "list-of-currencies": ["iota", "bitcoin", "ethereum"],
-  "payment-granularity": "5",
-  "signature-required": "1"
+  "list-of-currencies": ["iota", "bitcoin", "ethereum"]
 }
