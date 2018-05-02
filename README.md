@@ -12,8 +12,8 @@ An application-layer client-server protocol that enables purchase of data stream
 ## Instructions
 - git clone https://github.com/ANRGUSC/SDPP.git
 - cd SDPP/
-- ./seller.py *ip_address* *port*
-- ./buyer.py *ip_address* *port*
+- ./seller.py \**ip_address*\*  \**port*\*
+- ./buyer.py \**ip_address*\*  \**port*\*
 - Then please follow the instructions on your console!
 
 ## Version 1
