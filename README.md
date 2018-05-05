@@ -2,7 +2,7 @@
 
 An application-layer client-server protocol that enables purchase of data streams (such as IoT sensor data) through cryptocurrency, with invoice and receipts stored in an immutable distributed ledger. It is implemented using Python.
 
-It is still under development, we have just released the Version 1.0 of the protocol.
+This is release 1.0, we are still working to improve it. 
 
 ## More Reading
 [Current draft of the paper describing this protocol](https://github.com/ANRGUSC/SDPP/blob/master/documents/streaming-data-payment-protocol.pdf)
@@ -21,12 +21,12 @@ It is still under development, we have just released the Version 1.0 of the prot
 ## Version 1.0
 - Implemented using IOTA
 - Encryption using Shared Secret Key
-- Seller sends its public-key to the buyer along with the "Menu"(but in practical scenarios, it is made available openly)
+- Seller sends its public-key to the buyer along with the "Menu" (but in practical scenarios, it is made available openly)
 
 ## Future Plans
-- Trying the protocol on Blockchain based cryptocurrencies
+- Trying the protocol on Blockchain based cryptocurrencies including Ethereum
 - Integration with Hyperledger Fabric
-- A more general, clean architecture(based on [Blockstack](https://blockstack.org/)) 
+- A more general, clean architecture (such as based on [Blockstack](https://blockstack.org/)) 
 - Incorporating TLS
 - Implementation with mobile device
 
