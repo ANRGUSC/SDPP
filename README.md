@@ -30,5 +30,12 @@ This is release 1.0, we are still working to improve it.
 - Incorporating TLS
 - Implementation with mobile device
 
+## Contributing
+When contributing to this repository, please first discuss the change you wish to make via issue, email, or any other method with the owners of this repository before making a change.
+
+## Authors
+- Rahul Radhakrishnan (rahulrad@usc.edu)
+- Bhaskar Krishnamachari (bkrishna@usc.edu)
+
 ## License
 Copyright (c) 2018, Autonomous Networks Research Group, USC. See [this](https://github.com/ANRGUSC/SDPP/blob/master/LICENSE.txt) file for more details.
