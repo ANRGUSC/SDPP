@@ -1,0 +1,1 @@
+This [paper](https://github.com/ANRGUSC/SDPP/blob/master/documents/streaming-data-payment-protocol.pdf) was published in BIoT 2018: The 1<sup>st</sup> International Workshop on Blockchain for the Internet of Things, held in conjunction with IEEE Blockchain, Halifax, Canada, 2018.
